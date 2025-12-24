@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure PDF/Image Packer + Annotations</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PDF.js for rendering PDFs to images -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+    <!-- CryptoJS for Encryption -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    
+    <style>
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen font-sans">
+
+    <!-- MAIN APP CONTAINER -->
+    <div class="max-w-4xl mx-auto p-6">
+        
+        <!-- Header -->
+        <div class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-slate-900 mb-2">Secure Doc Packer <span class="text-blue-600 text-sm align-top bg-blue-100 px-2 py-0.5 rounded-full">v2.1</span></h1>
+            <p class="text-slate-600">Encrypt PDFs and Images into a password-protected HTML Viewer with Annotation capabilities.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            
+            <!-- Left Column: Input -->
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                    1. Upload Files
+                </h2>
+                
+                <div class="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:bg-slate-50 transition-colors relative">
+                    <input type="file" id="fileInput" multiple accept=".pdf, .jpg, .jpeg, .png" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleFileSelect(event)">
+                    <div class="pointer-events-none">
+                        <p class="text-slate-500 mb-2">Drag & Drop or Click to Upload</p>
+                        <p class="text-xs text-slate-400">PDFs will be converted to high-quality images.</p>
+                    </div>
+                </div>
+
+                <div id="fileList" class="mt-4 space-y-2 max-h-48 overflow-y-auto">
+                    <!-- File items injected here -->
+                </div>
+            </div>
+
+            <!-- Right Column: Settings & Process -->
+            <div class="bg-white p-6 rounded-xl shadow-lg flex flex-col justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                        2. Security & Options
+                    </h2>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Set Password</label>
+                        <input type="password" id="password" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter a strong password">
+                    </div>
+
+                     <div class="mb-4">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Output Filename (Optional)</label>
+                        <input type="text" id="outputName" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. SecretDocs (no extension)">
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="allowSave" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" checked>
+                            <span class="text-sm text-slate-700">Allow Save/Print as PDF?</span>
+                        </label>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="allowAnnotate" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" checked>
+                            <span class="text-sm text-slate-700">Enable Annotation Tools?</span>
+                        </label>
+                        <p class="text-xs text-slate-400 ml-6 mt-1">Recipients can draw on the document and save the annotated version.</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Image Quality</label>
+                        <select id="quality" class="w-full px-4 py-2 border rounded-lg text-sm">
+                            <option value="1.5">High (Recommended)</option>
+                            <option value="2.0" selected>Very High (Clear Text)</option>
+                            <option value="3.0">Ultra (Print Quality)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <button onclick="processFiles()" id="processBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all flex justify-center items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span>Download Encrypted Viewer</span>
+                    </button>
+                    <div id="status" class="mt-2 text-center text-sm text-slate-600 hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Guide -->
+        <div class="mt-8 bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800">
+            <h3 class="font-bold mb-1">How it works:</h3>
+            <p>We convert every page of your PDF into an image locally. These images are then AES encrypted with your password and packed into a single HTML file. The recipient opens the HTML file, enters the password, and can view or annotate the document securely in their browser.</p>
+        </div>
+    </div>
+
+
+    <script>
+        // --- LOGIC ---
+        let selectedFiles = [];
+
+        function handleFileSelect(event) {
+            const newFiles = Array.from(event.target.files);
+            selectedFiles = [...selectedFiles, ...newFiles];
+            renderFileList();
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            renderFileList();
+        }
+
+        function renderFileList() {
+            const listEl = document.getElementById('fileList');
+            listEl.innerHTML = '';
+            
+            selectedFiles.forEach((file, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-slate-50 p-2 rounded border border-slate-200 text-sm';
+                div.innerHTML = `
+                    <span class="truncate font-medium text-slate-700 w-3/4">${file.name}</span>
+                    <button onclick="removeFile(${index})" class="text-red-500 hover:text-red-700 p-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                `;
+                listEl.appendChild(div);
+            });
+        }
+
+        function updateStatus(msg, isLoading = false) {
+            const el = document.getElementById('status');
+            const btn = document.getElementById('processBtn');
+            el.classList.remove('hidden');
+            el.innerHTML = isLoading ? `<div class="flex items-center justify-center gap-2"><div class="loader border-t-blue-500 w-4 h-4"></div> ${msg}</div>` : msg;
+            
+            if(isLoading) {
+                btn.disabled = true;
+                btn.classList.add('opacity-75');
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('opacity-75');
+            }
+        }
+
+        async function processFiles() {
+            const password = document.getElementById('password').value;
+            if (!selectedFiles.length) return alert('Please upload at least one file.');
+            if (!password) return alert('Please set a password.');
+
+            const quality = parseFloat(document.getElementById('quality').value);
+            const allowSave = document.getElementById('allowSave').checked;
+            const allowAnnotate = document.getElementById('allowAnnotate').checked;
+            const customName = document.getElementById('outputName').value.trim();
+            
+            let baseName = customName;
+            if (!baseName) {
+                const firstFile = selectedFiles[0].name;
+                baseName = firstFile.substring(0, firstFile.lastIndexOf('.')) || firstFile;
+            }
+
+            updateStatus("Processing files... this may take a moment", true);
+
+            try {
+                let allPages = [];
+                for (let file of selectedFiles) {
+                    if (file.type === 'application/pdf') {
+                        updateStatus(`Rendering PDF: ${file.name}...`, true);
+                        const pdfPages = await convertPdfToImages(file, quality);
+                        allPages = [...allPages, ...pdfPages];
+                    } else if (file.type.startsWith('image/')) {
+                        updateStatus(`Processing Image: ${file.name}...`, true);
+                        const imgData = await readFileAsDataURL(file);
+                        allPages.push(imgData);
+                    }
+                }
+
+                updateStatus("Encrypting data...", true);
+                const payloadObj = {
+                    allowSave: allowSave,
+                    allowAnnotate: allowAnnotate,
+                    images: allPages,
+                    originalName: baseName,
+                    createdAt: new Date().toISOString()
+                };
+
+                const jsonString = JSON.stringify(payloadObj);
+                const encrypted = CryptoJS.AES.encrypt(jsonString, password).toString();
+
+                updateStatus("Generating viewer...", true);
+                const viewerHTML = getViewerTemplate(encrypted, baseName);
+
+                const blob = new Blob([viewerHTML], {type: "text/html"});
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${baseName}.html`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                updateStatus("Success! File downloaded.");
+                setTimeout(() => document.getElementById('status').classList.add('hidden'), 3000);
+
+            } catch (err) {
+                console.error(err);
+                updateStatus(`Error: ${err.message}`);
+                alert("An error occurred. Check console for details.");
+            }
+        }
+
+        // --- PDF HELPER FUNCTIONS ---
+
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        async function convertPdfToImages(file, scaleFactor) {
+            const arrayBuffer = await readFileAsArrayBuffer(file);
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            const pages = [];
+
+            for (let i = 1; i <= pdf.numPages; i++) {
+                updateStatus(`Rendering Page ${i} of ${pdf.numPages}...`, true);
+                const page = await pdf.getPage(i);
+                const viewport = page.getViewport({ scale: scaleFactor });
+                
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                await page.render({ canvasContext: context, viewport: viewport }).promise;
+                // Increased JPEG quality to 0.95
+                pages.push(canvas.toDataURL('image/jpeg', 0.95));
+            }
+            return pages;
+        }
+
+        // --- VIEWER TEMPLATE GENERATOR ---
+        function getViewerTemplate(encryptedData, docTitle) {
+            const safeTitle = docTitle.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            
+            return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>${safeTitle} - Secure View</title>
+    <script src="https://cdn.tailwindcss.com"><\/script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"><\/script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>
+    <style>
+        body.dark { background-color: #1e293b; color: #f1f5f9; }
+        .dark .bg-panel { background-color: #0f172a; border-color: #334155; }
+        .dark .text-sub { color: #94a3b8; }
+        
+        .zoom-container { transition: transform 0.2s ease; transform-origin: top center; }
+        
+        .no-select {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        /* Settings Sidebar Transitions */
+        #settingsPanel {
+            transition: transform 0.3s ease-in-out;
+        }
+        .translate-x-full { transform: translateX(100%); }
+        .translate-x-0 { transform: translateX(0); }
+        
+        /* Ensure thumbnails behave */
+        #sidebar.force-hidden { display: none !important; }
+        #sidebar.force-block { display: block !important; }
+
+        /* Annotation Cursors */
+        .cursor-pen { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 19l7-7 3 3-7 7-3-3z'></path><path d='M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z'></path><path d='M2 2l7.586 7.586'></path><circle cx='11' cy='11' r='2'></circle></svg>") 0 24, crosshair; }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen overflow-hidden flex flex-col transition-colors duration-200 no-select">
+
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-100 backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 mx-4">
+            <h2 class="text-2xl font-bold text-center mb-6 text-slate-800">Protected Document</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input type="password" id="passInput" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition" placeholder="Enter password to unlock" onkeyup="if(event.key==='Enter') unlock()">
+                </div>
+                <button onclick="unlock()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-lg transition-transform active:scale-95">Unlock Document</button>
+                <p id="errorMsg" class="text-red-500 text-sm text-center hidden">Incorrect password or corrupted data.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS SIDEBAR (Right) -->
+    <div id="settingsOverlay" class="fixed inset-0 z-40 bg-black/50 hidden" onclick="toggleSettings()"></div>
+    <div id="settingsPanel" class="fixed inset-y-0 right-0 z-50 w-72 bg-white dark:bg-slate-900 shadow-2xl transform translate-x-full border-l dark:border-slate-700 flex flex-col">
+        <div class="p-4 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center bg-gray-50 dark:bg-slate-800">
+            <h3 class="font-bold text-lg dark:text-white">Settings</h3>
+            <button onclick="toggleSettings()" class="text-gray-500 hover:text-gray-800 dark:text-gray-400">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        
+        <div class="p-4 space-y-4 overflow-y-auto flex-1">
+             <!-- Page Navigation (Mobile Context primarily) -->
+            <div class="bg-gray-100 dark:bg-slate-800 p-3 rounded-lg border dark:border-slate-700">
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">NAVIGATION</label>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm dark:text-gray-300">Page</span>
+                    <input type="number" id="modalPageInput" class="w-14 h-9 text-center rounded border border-gray-300 dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="1">
+                    <span class="text-sm dark:text-gray-300">of <span id="modalTotalPages">0</span></span>
+                    <button onclick="goToPageFromModal()" class="ml-auto bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 shadow-sm">Go</button>
+                </div>
+            </div>
+            
+            <div class="space-y-2">
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">APPEARANCE</label>
+                
+                <button onclick="toggleDark(); toggleSettings()" class="w-full flex items-center justify-between p-3 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-700 transition-colors">
+                    <span class="flex items-center gap-3 dark:text-white">
+                        <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                        Dark Mode
+                    </span>
+                    <div class="w-9 h-5 bg-gray-300 rounded-full relative transition-colors" id="modalDarkTrack"><div class="w-5 h-5 bg-white rounded-full shadow absolute left-0 transition-transform duration-200" id="modalDarkToggle"></div></div>
+                </button>
+
+                 <button onclick="toggleFit(); toggleSettings()" class="w-full flex items-center justify-between p-3 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-700 transition-colors">
+                    <span class="flex items-center gap-3 dark:text-white">
+                        <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+                        Fit Width / Page
+                    </span>
+                </button>
+            </div>
+
+            <div class="space-y-2">
+                 <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">TOOLS</label>
+                 
+                <button onclick="rotate(); toggleSettings()" class="w-full flex items-center justify-between p-3 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-700 transition-colors">
+                     <span class="flex items-center gap-3 dark:text-white">
+                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Rotate View
+                    </span>
+                </button>
+                
+                <button onclick="toggleFullScreen(); toggleSettings()" class="w-full flex items-center justify-between p-3 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-700 transition-colors">
+                     <span class="flex items-center gap-3 dark:text-white">
+                        <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M20 8V4m0 0h-4M4 16v4m0 0h4M20 16v4m0 0h-4"/></svg>
+                        Full Screen
+                    </span>
+                </button>
+            </div>
+
+            <div id="modalSaveBtnWrapper" class="hidden mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+                <button onclick="savePDF(); toggleSettings()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 shadow-md">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Save as PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP (Hidden initially) -->
+    <div id="app" class="flex-1 flex flex-col h-full hidden">
+        
+        <!-- TOOLBAR -->
+        <div class="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-3 md:px-4 shadow-sm z-20 bg-panel transition-colors gap-2 shrink-0">
+            
+            <div class="flex items-center gap-2">
+                <!-- Thumbnails Toggle -->
+                <button onclick="toggleSidebar()" class="p-2 hover:bg-gray-100 rounded text-slate-800 dark:text-gray-300 dark:hover:bg-slate-700" title="Toggle Thumbnails">
+                   <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                </button>
+                
+                <!-- Page Navigation (Desktop) -->
+                 <div class="hidden md:flex items-center gap-2 bg-gray-100 dark:bg-slate-700 px-3 py-1.5 rounded-md border border-gray-200 dark:border-slate-600">
+                    <span class="text-xs font-bold text-slate-600 dark:text-gray-400">PAGE</span>
+                    <input type="number" id="pageInput" class="w-12 bg-transparent text-center font-bold text-sm focus:outline-none dark:text-white text-slate-800" value="1" onchange="goToPage(this.value)">
+                    <span class="text-xs text-slate-500 dark:text-gray-400">/ <span id="totalPageDisplay"></span></span>
+                </div>
+            </div>
+
+            <!-- ANNOTATION TOOLBAR (Center - Visible if Enabled) -->
+            <div id="annotToolbar" class="hidden flex items-center gap-1 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg border border-gray-200 dark:border-slate-700">
+                <button onclick="setTool('pen', 'red')" class="p-1.5 rounded hover:bg-white dark:hover:bg-slate-600 tool-btn active-tool" title="Red Pen">
+                    <div class="w-4 h-4 rounded-full bg-red-500 border border-slate-300"></div>
+                </button>
+                <button onclick="setTool('pen', 'blue')" class="p-1.5 rounded hover:bg-white dark:hover:bg-slate-600 tool-btn" title="Blue Pen">
+                    <div class="w-4 h-4 rounded-full bg-blue-500 border border-slate-300"></div>
+                </button>
+                 <button onclick="setTool('pen', 'black')" class="p-1.5 rounded hover:bg-white dark:hover:bg-slate-600 tool-btn" title="Black Pen">
+                    <div class="w-4 h-4 rounded-full bg-black border border-slate-300"></div>
+                </button>
+                
+                <div class="w-px h-6 bg-gray-300 dark:bg-slate-600 mx-1"></div>
+                
+                <button onclick="setTool('highlight', 'yellow')" class="p-1.5 rounded hover:bg-white dark:hover:bg-slate-600 tool-btn" title="Highlighter">
+                    <div class="w-4 h-4 bg-yellow-300 opacity-60 border border-slate-400"></div>
+                </button>
+                
+                 <div class="w-px h-6 bg-gray-300 dark:bg-slate-600 mx-1"></div>
+                
+                <!-- Size Slider -->
+                <div class="flex items-center gap-1 px-1">
+                    <span class="text-[10px] uppercase text-slate-500 dark:text-slate-400 font-bold hidden sm:inline">Size</span>
+                    <input type="range" id="brushSize" min="1" max="50" value="3" class="w-16 sm:w-20 h-1.5 bg-gray-300 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-600" oninput="updateToolSize(this.value)" title="Tool Size">
+                </div>
+
+                <div class="w-px h-6 bg-gray-300 dark:bg-slate-600 mx-1"></div>
+
+                <button onclick="setTool('eraser')" class="p-1.5 rounded hover:bg-white dark:hover:bg-slate-600 tool-btn text-slate-600 dark:text-slate-300" title="Eraser">
+                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+                <button onclick="clearCurrentPage()" class="p-1.5 rounded hover:bg-white dark:hover:bg-slate-600 text-red-500" title="Clear Page">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <!-- Settings Button (Right side) -->
+            <div class="flex items-center gap-2">
+                <!-- Annotation Toggle -->
+                <button id="toggleAnnotBtn" onclick="toggleAnnotationMode()" class="hidden md:flex items-center gap-2 px-3 py-2 bg-white hover:bg-gray-50 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg text-sm font-bold text-slate-700 dark:text-gray-200 border border-gray-200 dark:border-slate-600 shadow-sm transition-all">
+                   <svg class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                   <span class="hidden lg:inline">Annotate</span>
+                </button>
+
+                <!-- Zoom Controls -->
+                <div class="hidden sm:flex items-center gap-1 bg-gray-100 rounded-lg p-1 bg-panel border border-gray-200 mr-2">
+                    <button onclick="zoom(-0.1)" class="p-1.5 hover:bg-white rounded text-slate-800 dark:text-gray-300 shadow-sm transition-all" title="Zoom Out">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
+                    </button>
+                    <div class="relative flex items-center">
+                        <input type="number" id="zoomInput" class="w-10 bg-transparent text-center font-bold font-mono text-sm focus:outline-none dark:text-white text-slate-800" value="100" onchange="manualZoom(this.value)">
+                        <span class="text-[10px] text-slate-500 absolute right-0 pointer-events-none">%</span>
+                    </div>
+                    <button onclick="zoom(0.1)" class="p-1.5 hover:bg-white rounded text-slate-800 dark:text-gray-300 shadow-sm transition-all" title="Zoom In">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    </button>
+                </div>
+                
+                <button onclick="toggleSettings()" class="flex items-center gap-2 px-3 py-2 bg-white hover:bg-gray-50 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg text-sm font-bold text-slate-700 dark:text-gray-200 border border-gray-200 dark:border-slate-600 shadow-sm transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    <span class="hidden sm:inline">Settings</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- WORKSPACE -->
+        <div class="flex-1 flex overflow-hidden relative">
+            
+            <!-- THUMBNAILS SIDEBAR (Left) -->
+            <div class="w-64 bg-gray-50 border-r border-gray-200 overflow-y-auto hidden bg-panel transition-all z-10 shrink-0" id="sidebar">
+                <div class="p-4 space-y-4" id="thumbnailContainer"></div>
+            </div>
+
+            <!-- MAIN VIEW -->
+            <div class="flex-1 bg-gray-200 overflow-auto relative p-2 md:p-8 flex justify-center bg-panel-darker transition-colors" id="mainContainer">
+                <div id="contentWrapper" class="zoom-container space-y-4 md:space-y-8 pb-20 shadow-xl transition-transform duration-200 ease-out origin-top w-full md:w-auto">
+                    <!-- Images injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA PAYLOAD ---
+        const ENCRYPTED_DATA = "${encryptedData}";
+        
+        // --- STATE ---
+        let docData = null;
+        let currentZoom = 1.0;
+        let currentRotation = 0;
+        let isFitWidth = true;
+        let isDark = false;
+        let currentPage = 1;
+
+        // Annotation State
+        let isAnnotating = false;
+        let currentTool = { type: 'pen', color: 'red', size: 3, opacity: 1.0 };
+        
+        // Preference memory
+        let toolSizes = {
+            pen: 3,
+            highlight: 20,
+            eraser: 30
+        };
+
+        let isDrawing = false;
+        let lastX = 0; 
+        let lastY = 0;
+
+        // Security
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.target.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    return false;
+                }
+            }
+        });
+        document.addEventListener('contextmenu', event => event.preventDefault());
+
+        function unlock() {
+            const pass = document.getElementById('passInput').value;
+            const errEl = document.getElementById('errorMsg');
+            
+            try {
+                const bytes = CryptoJS.AES.decrypt(ENCRYPTED_DATA, pass);
+                const decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
+                if(!decryptedStr) throw new Error("Decryption failed");
+                docData = JSON.parse(decryptedStr);
+                
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+                
+                // Defaults
+                if(window.innerWidth < 768) {
+                    isFitWidth = true;
+                } else {
+                    document.getElementById('sidebar').classList.remove('hidden');
+                }
+                
+                initViewer();
+            } catch(e) {
+                console.error(e);
+                errEl.classList.remove('hidden');
+                document.getElementById('passInput').classList.add('border-red-500');
+            }
+        }
+
+        function initViewer() {
+            const container = document.getElementById('contentWrapper');
+            const thumbs = document.getElementById('thumbnailContainer');
+            const totalPageEl = document.getElementById('totalPageDisplay');
+            const modalTotalPageEl = document.getElementById('modalTotalPages');
+            const modalSaveBtn = document.getElementById('modalSaveBtnWrapper');
+            const toggleAnnotBtn = document.getElementById('toggleAnnotBtn');
+
+            totalPageEl.textContent = docData.images.length;
+            modalTotalPageEl.textContent = docData.images.length;
+            
+            if(docData.allowSave) {
+                modalSaveBtn.classList.remove('hidden');
+            }
+
+            if(docData.allowAnnotate) {
+                toggleAnnotBtn.classList.remove('hidden');
+            }
+
+            docData.images.forEach((imgSrc, index) => {
+                // Page Container (Wrapper for Image + Canvas)
+                const pageWrapper = document.createElement('div');
+                pageWrapper.className = 'page-wrapper relative shadow-lg mx-auto transition-transform duration-200 bg-white';
+                pageWrapper.id = 'page-wrapper-' + (index + 1);
+                // Important: fit-content ensures wrapper shrinks to image dimensions
+                pageWrapper.style.width = 'fit-content'; 
+
+                // Image
+                const img = document.createElement('img');
+                img.src = imgSrc;
+                img.id = 'page-' + (index + 1);
+                img.className = 'block pointer-events-none select-none'; 
+                img.style.maxWidth = '100%'; 
+                img.setAttribute('draggable', 'false');
+                
+                // Canvas Overlay
+                const canvas = document.createElement('canvas');
+                canvas.id = 'canvas-' + (index + 1);
+                canvas.className = 'absolute inset-0 pointer-events-none touch-none'; // Initially disabled
+                
+                // Load image to set canvas dimensions correctly
+                img.onload = () => {
+                    canvas.width = img.naturalWidth;
+                    canvas.height = img.naturalHeight;
+                    // Ensure visual size matches image
+                    canvas.style.width = '100%';
+                    canvas.style.height = '100%';
+                };
+
+                // Canvas Events
+                canvas.addEventListener('mousedown', startDraw);
+                canvas.addEventListener('mousemove', draw);
+                canvas.addEventListener('mouseup', stopDraw);
+                canvas.addEventListener('mouseout', stopDraw);
+                
+                canvas.addEventListener('touchstart', handleTouchStart, {passive: false});
+                canvas.addEventListener('touchmove', handleTouchMove, {passive: false});
+                canvas.addEventListener('touchend', stopDraw);
+
+                pageWrapper.appendChild(img);
+                pageWrapper.appendChild(canvas);
+                container.appendChild(pageWrapper);
+
+                // Thumbnail
+                const thumb = document.createElement('img');
+                thumb.src = imgSrc;
+                thumb.className = 'w-full border-2 border-transparent hover:border-blue-500 cursor-pointer bg-white shadow-sm rounded mb-2';
+                thumb.onclick = () => { goToPage(index + 1); };
+                thumbs.appendChild(thumb);
+            });
+            
+            setupPageObserver();
+            applyViewSettings();
+        }
+
+        // --- ANNOTATION LOGIC ---
+        
+        function toggleAnnotationMode() {
+            isAnnotating = !isAnnotating;
+            const toolbar = document.getElementById('annotToolbar');
+            const btn = document.getElementById('toggleAnnotBtn');
+            const canvases = document.querySelectorAll('canvas');
+
+            if (isAnnotating) {
+                toolbar.classList.remove('hidden');
+                btn.classList.add('bg-blue-50', 'text-blue-600', 'border-blue-300');
+                canvases.forEach(c => {
+                    c.classList.remove('pointer-events-none');
+                    c.classList.add('cursor-pen');
+                });
+            } else {
+                toolbar.classList.add('hidden');
+                btn.classList.remove('bg-blue-50', 'text-blue-600', 'border-blue-300');
+                canvases.forEach(c => {
+                    c.classList.add('pointer-events-none');
+                    c.classList.remove('cursor-pen');
+                });
+            }
+        }
+
+        function setTool(type, color) {
+            currentTool.type = type;
+            const slider = document.getElementById('brushSize');
+
+            if (type === 'pen') {
+                currentTool.color = color;
+                currentTool.size = toolSizes.pen;
+                currentTool.opacity = 1.0;
+            } else if (type === 'highlight') {
+                currentTool.color = 'rgba(255, 255, 0, 0.4)'; // Yellow transparent
+                currentTool.size = toolSizes.highlight;
+                currentTool.opacity = 0.4;
+            } else if (type === 'eraser') {
+                currentTool.size = toolSizes.eraser;
+            }
+
+            // Update UI Slider
+            if(slider) slider.value = currentTool.size;
+
+            // Update UI active state
+            const btns = document.querySelectorAll('.tool-btn');
+            btns.forEach(b => b.classList.remove('bg-white', 'shadow-sm'));
+            event.currentTarget.classList.add('bg-white', 'shadow-sm');
+        }
+
+        function updateToolSize(val) {
+            val = parseInt(val);
+            currentTool.size = val;
+            
+            // Remember preference for the active tool type
+            if(currentTool.type === 'pen') toolSizes.pen = val;
+            if(currentTool.type === 'highlight') toolSizes.highlight = val;
+            if(currentTool.type === 'eraser') toolSizes.eraser = val;
+        }
+
+        function clearCurrentPage() {
+            const canvas = document.getElementById('canvas-' + currentPage);
+            if(canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function getMousePos(canvas, evt) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (evt.clientX - rect.left) * scaleX,
+                y: (evt.clientY - rect.top) * scaleY
+            };
+        }
+
+        function startDraw(e) {
+            if (!isAnnotating) return;
+            isDrawing = true;
+            const canvas = e.target;
+            const pos = getMousePos(canvas, e);
+            lastX = pos.x;
+            lastY = pos.y;
+        }
+
+        function draw(e) {
+            if (!isAnnotating || !isDrawing) return;
+            const canvas = e.target;
+            const ctx = canvas.getContext('2d');
+            const pos = getMousePos(canvas, e);
+
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.lineWidth = currentTool.size;
+
+            if (currentTool.type === 'eraser') {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.globalAlpha = 1.0;
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+                if(currentTool.type === 'highlight') {
+                     // Highlighter needs specialized blending to look real and not overlap darkly
+                     ctx.globalCompositeOperation = 'multiply'; 
+                     ctx.fillStyle = currentTool.color;
+                     // We use fill circles for smoother highlight or stroke?
+                     // Let's stick to simple stroke for stability
+                     ctx.globalCompositeOperation = 'source-over'; // Fallback
+                     ctx.strokeStyle = currentTool.color; 
+                } else {
+                    ctx.strokeStyle = currentTool.color;
+                }
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+
+            lastX = pos.x;
+            lastY = pos.y;
+        }
+
+        function stopDraw() {
+            isDrawing = false;
+        }
+
+        // Touch Support
+        function handleTouchStart(e) {
+            if(!isAnnotating) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent("mousedown", {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            e.target.dispatchEvent(mouseEvent);
+        }
+
+        function handleTouchMove(e) {
+            if(!isAnnotating) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent("mousemove", {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            e.target.dispatchEvent(mouseEvent);
+        }
+
+        // --- VIEWER CORE ---
+
+        function setupPageObserver() {
+            const options = { root: document.getElementById('mainContainer'), threshold: 0.1 };
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        // ID is page-wrapper-1
+                        const pageNum = parseInt(entry.target.id.split('-').pop());
+                        currentPage = pageNum;
+                        document.getElementById('pageInput').value = pageNum;
+                        document.getElementById('modalPageInput').value = pageNum;
+                    }
+                });
+            }, options);
+            docData.images.forEach((_, i) => {
+                const el = document.getElementById('page-wrapper-' + (i + 1));
+                if(el) observer.observe(el);
+            });
+        }
+
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            const overlay = document.getElementById('settingsOverlay');
+            
+            if(panel.classList.contains('translate-x-full')) {
+                // Open
+                panel.classList.remove('translate-x-full');
+                panel.classList.add('translate-x-0');
+                overlay.classList.remove('hidden');
+            } else {
+                // Close
+                panel.classList.remove('translate-x-0');
+                panel.classList.add('translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('hidden')) {
+                sidebar.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('hidden');
+            }
+        }
+
+        function goToPage(pageNum) {
+            pageNum = Math.max(1, Math.min(docData.images.length, parseInt(pageNum) || 1));
+            const el = document.getElementById('page-wrapper-' + pageNum);
+            if(el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+                document.getElementById('pageInput').value = pageNum;
+                document.getElementById('modalPageInput').value = pageNum;
+            }
+        }
+
+        function goToPageFromModal() {
+            const val = document.getElementById('modalPageInput').value;
+            goToPage(val);
+            toggleSettings(); 
+        }
+
+        function manualZoom(val) {
+            const num = parseInt(val);
+            if(!isNaN(num)) {
+                currentZoom = num / 100;
+                applyViewSettings();
+            }
+        }
+
+        function zoom(delta) {
+            currentZoom = Math.max(0.1, Math.min(5.0, currentZoom + delta));
+            currentZoom = Math.round(currentZoom * 10) / 10;
+            applyViewSettings();
+        }
+
+        function rotate() {
+            currentRotation = (currentRotation + 90) % 360;
+            applyViewSettings();
+        }
+
+        function toggleFit() {
+            isFitWidth = !isFitWidth;
+            if(isFitWidth) currentZoom = 1.0;
+            applyViewSettings();
+        }
+
+        function toggleDark() {
+            isDark = !isDark;
+            document.body.classList.toggle('dark');
+            
+            const dot = document.getElementById('modalDarkToggle');
+            const track = document.getElementById('modalDarkTrack');
+            
+            if(isDark) {
+                dot.style.transform = 'translateX(100%)';
+                track.style.backgroundColor = '#4ade80'; // Green on
+            } else {
+                dot.style.transform = 'translateX(0)';
+                track.style.backgroundColor = '#d1d5db'; // Gray off
+            }
+
+            const main = document.getElementById('mainContainer');
+            main.style.backgroundColor = isDark ? '#0f172a' : '#e5e7eb';
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => console.log(err));
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        function applyViewSettings() {
+            const wrapper = document.getElementById('contentWrapper');
+            const pages = wrapper.querySelectorAll('.page-wrapper');
+            const zoomInput = document.getElementById('zoomInput');
+
+            zoomInput.value = Math.round(currentZoom * 100);
+
+            if(isFitWidth) {
+                 wrapper.style.width = '100%';
+            } else {
+                 wrapper.style.width = 'auto';
+            }
+            
+            wrapper.style.transform = \`scale(\${currentZoom})\`;
+
+            pages.forEach(page => {
+                page.style.transform = \`rotate(\${currentRotation}deg)\`;
+            });
+        }
+
+        // --- PDF EXPORT WITH ANNOTATIONS ---
+        
+        async function savePDF() {
+            if(!docData.allowSave) return;
+            
+            let defaultName = docData.originalName || "document";
+            let fileName = prompt("Enter filename for PDF:", defaultName);
+            if (!fileName) return; 
+            if (!fileName.toLowerCase().endsWith('.pdf')) fileName += '.pdf';
+
+            // Show loading toast (simple implementation)
+            const saveBtn = document.querySelector('#modalSaveBtnWrapper button');
+            const originalText = saveBtn.innerText;
+            saveBtn.innerText = "Generating PDF...";
+            saveBtn.disabled = true;
+
+            setTimeout(async () => {
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+                    doc.deletePage(1);
+
+                    for(let i=0; i<docData.images.length; i++) {
+                        const imgEl = document.getElementById('page-'+(i+1));
+                        const canvasEl = document.getElementById('canvas-'+(i+1));
+                        
+                        // Create a temporary canvas to composite Image + Annotation
+                        const compositeCanvas = document.createElement('canvas');
+                        compositeCanvas.width = imgEl.naturalWidth;
+                        compositeCanvas.height = imgEl.naturalHeight;
+                        const ctx = compositeCanvas.getContext('2d');
+                        
+                        // Draw Image
+                        ctx.drawImage(imgEl, 0, 0);
+                        
+                        // Draw Annotations on top
+                        ctx.drawImage(canvasEl, 0, 0);
+
+                        const finalImgData = compositeCanvas.toDataURL('image/jpeg', 0.85);
+                        
+                        const isLandscape = imgEl.naturalWidth > imgEl.naturalHeight;
+                        doc.addPage('a4', isLandscape ? 'l' : 'p');
+                        
+                        const pageWidth = doc.internal.pageSize.getWidth();
+                        const pageHeight = doc.internal.pageSize.getHeight();
+                        
+                        doc.addImage(finalImgData, 'JPEG', 0, 0, pageWidth, pageHeight, null, 'FAST');
+                    }
+                    
+                    doc.save(fileName);
+                } catch (err) {
+                    console.error(err);
+                    alert("Error generating PDF: " + err.message);
+                } finally {
+                    saveBtn.innerText = originalText;
+                    saveBtn.disabled = false;
+                }
+            }, 100);
+        }
+    <\/script>
+</body>
+</html>`;
+        }
+    </script>
+</body>
+</html>
