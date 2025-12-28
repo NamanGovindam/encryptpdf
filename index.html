@@ -2,84 +2,134 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure PDF Packer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Secure PDF Packer Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- CryptoJS for Encryption -->
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+    <!-- CryptoJS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     
     <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Loader */
         .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3b82f6;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
             border-radius: 50%;
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Range Slider Customization */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -5px; 
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen font-sans">
 
-    <!-- MAIN APP CONTAINER -->
-    <div class="max-w-4xl mx-auto p-6">
+    <!-- BUILDER INTERFACE -->
+    <div class="max-w-5xl mx-auto p-6">
         
-        <!-- Header -->
         <div class="mb-8 text-center">
-            <h1 class="text-3xl font-bold text-slate-900 mb-2">Secure PDF Packer <span class="text-blue-600 text-sm align-top bg-blue-100 px-2 py-0.5 rounded-full">v3.1 Mobile Fix</span></h1>
-            <p class="text-slate-600">Encrypt original PDFs. Auto-detects Mobile to open natively, while using secure iframe on Desktop.</p>
+            <h1 class="text-3xl font-bold text-slate-900 mb-2">Secure PDF Packer <span class="text-blue-600 text-sm align-top bg-blue-100 px-2 py-0.5 rounded-full">v5.3 Fixed</span></h1>
+            <p class="text-slate-600">Encrypt PDFs with Hi-Res Viewer, Pinch-to-Zoom, and Custom Annotations.</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             
-            <!-- Left Column: Input -->
-            <div class="bg-white p-6 rounded-xl shadow-lg">
+            <!-- Left: Upload -->
+            <div class="bg-white p-6 rounded-xl shadow-lg flex flex-col">
                 <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                    1. Upload Files
+                    <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                    1. Upload PDF
                 </h2>
                 
-                <div class="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:bg-slate-50 transition-colors relative">
-                    <input type="file" id="fileInput" multiple accept=".pdf, .jpg, .jpeg, .png" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleFileSelect(event)">
-                    <div class="pointer-events-none">
-                        <p class="text-slate-500 mb-2">Drag & Drop or Click to Upload</p>
-                        <p class="text-xs text-slate-400">Supports PDF, JPG, PNG.</p>
+                <div class="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:bg-slate-50 transition-colors relative flex-1 flex flex-col justify-center items-center">
+                    <input type="file" id="fileInput" accept=".pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleFile(event)">
+                    <div id="dropText" class="pointer-events-none">
+                        <p class="text-slate-500 mb-1 font-medium">Click to select PDF</p>
+                        <p class="text-xs text-slate-400">PDF files only for this version</p>
                     </div>
                 </div>
-
-                <div id="fileList" class="mt-4 space-y-2 max-h-60 overflow-y-auto">
-                    <!-- File items injected here -->
-                </div>
+                <div id="fileNameDisplay" class="mt-4 text-sm font-semibold text-blue-700 bg-blue-50 p-2 rounded hidden truncate"></div>
             </div>
 
-            <!-- Right Column: Settings & Process -->
-            <div class="bg-white p-6 rounded-xl shadow-lg flex flex-col justify-between">
-                <div>
-                    <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                        2. Security & Options
-                    </h2>
+            <!-- Right: Settings -->
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    2. Security & permissions
+                </h2>
 
-                    <div class="mb-4">
+                <div class="space-y-4">
+                    <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">Set Password</label>
-                        <input type="password" id="password" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter a strong password">
+                        <div class="relative">
+                            <input type="password" id="password" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Required to unlock">
+                            <button onclick="toggleBuilderPass()" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                            </button>
+                        </div>
                     </div>
 
-                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Output Filename (Optional)</label>
-                        <input type="text" id="outputName" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. SecretDocs">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Output Filename</label>
+                        <input type="text" id="outputName" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. MySecureDoc">
                     </div>
 
-                    <div class="bg-blue-50 border border-blue-100 p-3 rounded-lg text-sm text-blue-800 mb-4">
-                        <p class="font-semibold mb-1">Mobile Optimized:</p>
-                        <p>If detected on mobile, the secured file will automatically open the PDF in the native browser viewer instead of an iframe.</p>
+                    <div class="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="allowDownload" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500">
+                            <div>
+                                <span class="text-sm font-bold text-slate-700">Allow Download?</span>
+                                <p class="text-xs text-slate-500">User can save the original PDF file.</p>
+                            </div>
+                        </label>
+
+                        <div class="h-px bg-slate-200"></div>
+
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="allowAnnotate" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" checked>
+                            <div>
+                                <span class="text-sm font-bold text-slate-700">Enable Annotations?</span>
+                                <p class="text-xs text-slate-500">Includes Pen, Highlight, Eraser, Undo/Redo.</p>
+                            </div>
+                        </label>
                     </div>
                 </div>
 
                 <div class="mt-6">
                     <button onclick="processFiles()" id="processBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all flex justify-center items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
-                        <span>Download Encrypted Viewer</span>
+                        <span>Pack & Download HTML</span>
                     </button>
                     <div id="status" class="mt-2 text-center text-sm text-slate-600 hidden"></div>
                 </div>
@@ -87,316 +137,766 @@
         </div>
     </div>
 
+    <!-- BUILDER LOGIC -->
     <script>
-        // --- LOGIC ---
-        let selectedFiles = [];
+        let selectedFile = null;
+        let fileData = null; // Base64
 
-        function handleFileSelect(event) {
-            const newFiles = Array.from(event.target.files);
-            selectedFiles = [...selectedFiles, ...newFiles];
-            renderFileList();
-        }
-
-        function removeFile(index) {
-            selectedFiles.splice(index, 1);
-            renderFileList();
-        }
-
-        function renderFileList() {
-            const listEl = document.getElementById('fileList');
-            listEl.innerHTML = '';
+        function handleFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            selectedFile = file;
             
-            selectedFiles.forEach((file, index) => {
-                const div = document.createElement('div');
-                div.className = 'flex items-center justify-between bg-slate-50 p-2 rounded border border-slate-200 text-sm';
-                div.innerHTML = `
-                    <div class="flex items-center gap-2 overflow-hidden">
-                        <span class="text-xs font-bold uppercase text-gray-500 w-8">${file.name.split('.').pop()}</span>
-                        <span class="truncate font-medium text-slate-700">${file.name}</span>
-                    </div>
-                    <button onclick="removeFile(${index})" class="text-red-500 hover:text-red-700 p-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                `;
-                listEl.appendChild(div);
-            });
+            document.getElementById('fileNameDisplay').textContent = "Selected: " + file.name;
+            document.getElementById('fileNameDisplay').classList.remove('hidden');
+            document.getElementById('dropText').innerHTML = `<span class="text-blue-600 font-bold">Ready</span>`;
+            
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                fileData = evt.target.result; // Data URL
+            };
+            reader.readAsDataURL(file);
         }
 
-        function updateStatus(msg, isLoading = false) {
+        function toggleBuilderPass() {
+            const input = document.getElementById('password');
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
+        function updateStatus(msg, loading) {
             const el = document.getElementById('status');
-            const btn = document.getElementById('processBtn');
+            el.innerHTML = loading ? `<div class="flex items-center justify-center gap-2"><div class="loader"></div> ${msg}</div>` : msg;
             el.classList.remove('hidden');
-            el.innerHTML = isLoading ? `<div class="flex items-center justify-center gap-2"><div class="loader border-t-blue-500 w-4 h-4"></div> ${msg}</div>` : msg;
-            
-            if(isLoading) {
-                btn.disabled = true;
-                btn.classList.add('opacity-75');
-            } else {
-                btn.disabled = false;
-                btn.classList.remove('opacity-75');
-            }
         }
 
-        function readFileAsDataURL(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-        }
+        function processFiles() {
+            const pass = document.getElementById('password').value;
+            if(!fileData) return alert("Please select a PDF file.");
+            if(!pass) return alert("Please set a password.");
 
-        async function processFiles() {
-            const password = document.getElementById('password').value;
-            if (!selectedFiles.length) return alert('Please upload at least one file.');
-            if (!password) return alert('Please set a password.');
+            updateStatus("Encrypting...", true);
 
-            const customName = document.getElementById('outputName').value.trim();
-            let baseName = customName;
-            if (!baseName) {
-                const firstFile = selectedFiles[0].name;
-                baseName = firstFile.substring(0, firstFile.lastIndexOf('.')) || firstFile;
-            }
+            setTimeout(() => {
+                try {
+                    const allowDownload = document.getElementById('allowDownload').checked;
+                    const allowAnnotate = document.getElementById('allowAnnotate').checked;
+                    
+                    const customName = document.getElementById('outputName').value.trim();
+                    let finalName = customName;
+                    
+                    if (!finalName && selectedFile) {
+                        finalName = selectedFile.name.replace(/\.[^/.]+$/, "");
+                    }
+                    if (!finalName) finalName = "SecureDoc";
 
-            updateStatus("Reading & Encrypting files...", true);
+                    const payload = {
+                        data: fileData,
+                        name: selectedFile.name,
+                        allowDownload: allowDownload,
+                        allowAnnotate: allowAnnotate,
+                        generated: Date.now()
+                    };
 
-            try {
-                let processedFiles = [];
-                
-                for(let file of selectedFiles) {
-                    const dataUrl = await readFileAsDataURL(file);
-                    processedFiles.push({
-                        name: file.name,
-                        type: file.type,
-                        data: dataUrl
-                    });
+                    const encrypted = CryptoJS.AES.encrypt(JSON.stringify(payload), pass).toString();
+                    const htmlContent = getViewerHTML(encrypted, finalName);
+                    
+                    const blob = new Blob([htmlContent], {type: 'text/html'});
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = finalName + ".html";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    
+                    updateStatus("Done! File downloaded.");
+                } catch(e) {
+                    console.error(e);
+                    updateStatus("Error: " + e.message);
                 }
-
-                // 2. Encrypt
-                const payloadObj = {
-                    files: processedFiles,
-                    createdAt: new Date().toISOString()
-                };
-
-                const jsonString = JSON.stringify(payloadObj);
-                const encrypted = CryptoJS.AES.encrypt(jsonString, password).toString();
-
-                // 3. Generate Viewer
-                const viewerHTML = getViewerTemplate(encrypted, baseName);
-
-                // 4. Download
-                const blob = new Blob([viewerHTML], {type: "text/html"});
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = `${baseName}.html`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
-                updateStatus("Success! HTML file generated.");
-                setTimeout(() => document.getElementById('status').classList.add('hidden'), 3000);
-
-            } catch (err) {
-                console.error(err);
-                updateStatus("Error: " + err.message);
-                alert("An error occurred processing the files.");
-            }
+            }, 100);
         }
 
-        // --- VIEWER TEMPLATE ---
-        function getViewerTemplate(encryptedData, title) {
-            const safeTitle = title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            
-            // NOTE: Security scripts injected inside the template
+        function getViewerHTML(encryptedData, title) {
+            const safeTitle = title.replace(/</g, "&lt;");
             
             return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>${safeTitle} - Secure View</title>
     <script src="https://cdn.tailwindcss.com"><\/script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"><\/script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';<\/script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"><\/script>
     <style>
-        body, html { height: 100%; margin: 0; overflow: hidden; user-select: none; -webkit-user-select: none; }
-        .iframe-container { height: calc(100% - 3.5rem); width: 100%; }
-        iframe { width: 100%; height: 100%; border: none; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        :root { --bg-color: #f3f4f6; --toolbar-bg: #ffffff; --text-color: #1f2937; }
+        body.dark { --bg-color: #111827; --toolbar-bg: #1f2937; --text-color: #f3f4f6; }
+        
+        body { background-color: var(--bg-color); color: var(--text-color); overscroll-behavior: none; transition: background-color 0.3s; }
+        .no-select { user-select: none; -webkit-user-select: none; }
+        
+        /* Toolbar */
+        .toolbar { background-color: var(--toolbar-bg); border-color: #e5e7eb; transition: background-color 0.3s, border-color 0.3s; }
+        body.dark .toolbar { border-color: #374151; }
+        
+        .tool-btn { padding: 6px; border-radius: 6px; color: #4b5563; transition: all 0.2s; }
+        body.dark .tool-btn { color: #d1d5db; }
+        .tool-btn:hover { background-color: #e5e7eb; }
+        body.dark .tool-btn:hover { background-color: #374151; }
+        .tool-btn.active { background-color: #dbeafe; color: #1d4ed8; }
+        body.dark .tool-btn.active { background-color: #1e3a8a; color: #93c5fd; }
+
+        /* Page */
+        .page-container { position: relative; margin-bottom: 20px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); transform-origin: top left; }
+        .pdf-canvas { display: block; } 
+        .annot-canvas { position: absolute; top: 0; left: 0; cursor: crosshair; touch-action: none; }
+        
+        /* Color Picker */
+        .color-dot { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
+        .color-dot.active { border-color: #3b82f6; transform: scale(1.1); }
+        
+        /* Input */
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .page-input { background: transparent; text-align: center; width: 40px; font-weight: bold; outline: none; }
+        body.dark .page-input { color: white; }
+
+        /* Zoom Container for Pinch */
+        #viewerContainer {
+            transform-origin: 0 0;
+            transition: transform 0.1s ease-out;
+        }
     </style>
 </head>
-<body class="bg-gray-100 flex flex-col h-full" oncontextmenu="return false;">
+<body class="h-screen flex flex-col overflow-hidden no-select" oncontextmenu="return false">
 
-    <!-- LOGIN SCREEN -->
-    <div id="loginScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-100">
-        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md border border-gray-200 mx-4">
-            <h2 class="text-2xl font-bold text-center mb-6 text-slate-800">Protected Document</h2>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                    <input type="password" id="passInput" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter password" onkeyup="if(event.key==='Enter') unlock()">
-                </div>
-                <button onclick="unlock()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-lg">Unlock</button>
-                <p id="errorMsg" class="text-red-500 text-sm text-center hidden">Incorrect password.</p>
-                <p id="mobileMsg" class="text-blue-600 text-xs text-center hidden">Mobile detected: Document will open natively.</p>
+    <!-- PASSWORD MODAL -->
+    <div id="loginOverlay" class="fixed inset-0 z-50 bg-gray-100 dark:bg-slate-900 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-sm border border-gray-200 dark:border-slate-700">
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-6 text-center">Secure Document</h2>
+            <div class="relative mb-4">
+                <input type="password" id="passInput" class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-700 dark:text-white" placeholder="Enter Password" onkeyup="if(event.key==='Enter') unlock()">
+                <button onclick="toggleViewerPass()" class="absolute right-3 top-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                </button>
             </div>
+            <button onclick="unlock()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow transition transform active:scale-95">Unlock Viewer</button>
+            <p id="errMsg" class="text-red-500 text-sm mt-3 text-center hidden"></p>
         </div>
     </div>
 
     <!-- MAIN APP -->
     <div id="app" class="flex flex-col h-full hidden">
         
-        <!-- Header / Toolbar -->
-        <div class="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shadow-sm z-10 shrink-0">
-            <div class="flex items-center gap-4 overflow-hidden">
-                <h1 class="font-bold text-slate-700 truncate">${safeTitle}</h1>
-                <select id="fileSelector" class="hidden text-sm border border-gray-300 rounded px-2 py-1 max-w-[200px]" onchange="switchFile(this.value)">
-                    <!-- Options injected here -->
-                </select>
+        <!-- TOOLBAR -->
+        <div class="toolbar h-16 border-b flex items-center justify-between px-2 md:px-4 shadow-sm z-30 shrink-0 gap-2">
+            
+            <!-- Left: Page Nav -->
+            <div class="flex items-center gap-1 md:gap-2">
+                <button onclick="toggleSidebar()" class="tool-btn" title="Toggle Thumbnails">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+                <div class="flex items-center bg-gray-100 dark:bg-slate-700 rounded-md px-1 py-1">
+                    <button onclick="changePage(-1)" class="p-1 hover:text-blue-600 dark:text-gray-300 dark:hover:text-white">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <input type="number" id="pageInput" class="page-input mx-1 text-sm" value="1" onchange="jumpToPage(this.value)">
+                    <span class="text-xs text-gray-500 dark:text-gray-400">/ <span id="totalPages">--</span></span>
+                    <button onclick="changePage(1)" class="p-1 hover:text-blue-600 dark:text-gray-300 dark:hover:text-white">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
             </div>
-            <div class="flex items-center gap-2">
-               <button onclick="downloadCurrent()" class="text-sm bg-gray-100 hover:bg-gray-200 text-slate-700 px-3 py-1.5 rounded flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                    <span class="hidden sm:inline">Download Source</span>
-               </button>
+
+            <!-- Center: Tools (If Enabled) -->
+            <div id="annotTools" class="flex items-center gap-1 md:gap-2 hidden overflow-x-auto no-scrollbar">
+                
+                <!-- Color & Size -->
+                <div class="flex items-center gap-2 bg-gray-100 dark:bg-slate-700 p-1 rounded-lg mr-1">
+                    <div id="colorPalette" class="flex gap-1"></div>
+                    <div class="w-px h-4 bg-gray-300 mx-1"></div>
+                    <input type="range" id="sizeSlider" min="1" max="50" value="2" class="w-16 md:w-20" title="Stroke Size" oninput="updateSize(this.value)">
+                </div>
+
+                <!-- Tools -->
+                <div class="flex bg-gray-100 dark:bg-slate-700 p-1 rounded-lg">
+                    <button onclick="setTool('pen')" id="btn-pen" class="tool-btn active" title="Pen">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                    </button>
+                    <button onclick="setTool('highlight')" id="btn-highlight" class="tool-btn" title="Highlighter">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    </button>
+                    <button onclick="setTool('eraser')" id="btn-eraser" class="tool-btn" title="Eraser">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                </div>
+
+                <div class="flex gap-1">
+                    <button onclick="undo()" class="tool-btn" title="Undo">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                    </button>
+                    <button onclick="redo()" class="tool-btn" title="Redo">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right: View Controls -->
+            <div class="flex items-center gap-1 md:gap-2">
+                <!-- Zoom -->
+                <div class="hidden sm:flex items-center bg-gray-100 dark:bg-slate-700 rounded-md">
+                    <button onclick="zoom(-0.1)" class="p-1.5 hover:text-blue-600 dark:text-gray-300"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg></button>
+                    <button onclick="zoom(0.1)" class="p-1.5 hover:text-blue-600 dark:text-gray-300"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg></button>
+                </div>
+                
+                <div class="hidden lg:flex gap-1">
+                    <button onclick="fitWidth()" class="tool-btn" title="Fit Width">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/></svg>
+                    </button>
+                    <button onclick="fitPage()" class="tool-btn" title="Fit Page">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    </button>
+                </div>
+
+                <!-- Extras -->
+                <button onclick="toggleDarkMode()" class="tool-btn" title="Dark Mode">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                </button>
+                <button onclick="toggleFullScreen()" class="tool-btn hidden md:block" title="Fullscreen">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M20 8V4m0 0h-4M4 16v4m0 0h4M20 16v4m0 0h-4"/></svg>
+                </button>
+
+                <button id="downloadBtn" onclick="downloadOriginal()" class="hidden bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg shadow">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                </button>
             </div>
         </div>
 
-        <!-- Viewer Area -->
-        <div class="iframe-container relative bg-gray-200 flex justify-center items-center">
-            <iframe id="docFrame" src=""></iframe>
-            <div id="placeholder" class="absolute inset-0 flex items-center justify-center text-slate-400 font-medium hidden">Select a file to view</div>
+        <!-- WORKSPACE -->
+        <div class="flex-1 flex overflow-hidden relative">
+            
+            <!-- SIDEBAR -->
+            <div id="sidebar" class="hidden w-64 bg-white dark:bg-slate-800 border-r dark:border-slate-700 overflow-y-auto absolute md:relative z-20 h-full shadow-xl md:shadow-none transition-all">
+                <div id="thumbnailContainer" class="p-4 space-y-4 flex flex-col items-center"></div>
+            </div>
+
+            <!-- MAIN SCROLL AREA -->
+            <div id="mainContainer" class="flex-1 overflow-auto relative p-4 flex flex-col items-center transition-all bg-gray-200 dark:bg-slate-900 touch-pan-x touch-pan-y">
+                <div id="viewer" class="relative transition-transform origin-top-left"></div>
+            </div>
         </div>
     </div>
 
     <script>
         const ENCRYPTED_DATA = "${encryptedData}";
-        let docData = null;
-        let currentBlobUrl = null;
         
-        // SECURITY: Block Right Click & Ctrl Keys
-        document.addEventListener('contextmenu', event => event.preventDefault());
-        document.addEventListener('keydown', function(e) {
-            // Block Ctrl (Cmd on Mac) keys to prevent Save/Print shortcuts
-            if (e.ctrlKey || e.metaKey) {
-                e.preventDefault();
-            }
+        let docData = null;
+        let pdfDoc = null;
+        let scale = 1.0;
+        let currentPage = 1;
+        let totalPages = 0;
+        
+        // Annotation Config
+        const penColors = ['#000000', '#ef4444', '#3b82f6', '#10b981']; 
+        const highColors = ['rgba(255, 255, 0, 0.4)', 'rgba(59, 130, 246, 0.4)', 'rgba(16, 185, 129, 0.4)', 'rgba(236, 72, 153, 0.4)']; 
+        
+        // Tool State
+        let currentTool = 'pen'; 
+        let currentColor = penColors[0];
+        let toolSizes = { pen: 2, highlight: 20, eraser: 20 };
+        
+        // Draw State
+        let isDrawing = false;
+        let currentStroke = [];
+        let annotations = {}; // { pageNum: [actions] }
+        let redoStack = {};   // { pageNum: [actions] }
+        let activeCanvas = null; // Track which canvas is being drawn on
+
+        // --- SECURITY ---
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey || e.metaKey) e.preventDefault(); 
         });
 
-        // DETECT MOBILE
-        function isMobile() {
-            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        function toggleViewerPass() {
+            const input = document.getElementById('passInput');
+            input.type = input.type === 'password' ? 'text' : 'password';
         }
 
-        if(isMobile()) {
-            document.getElementById('mobileMsg').classList.remove('hidden');
-        }
-
+        // --- CORE ---
         function unlock() {
             const pass = document.getElementById('passInput').value;
-            try {
-                const bytes = CryptoJS.AES.decrypt(ENCRYPTED_DATA, pass);
-                const decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
-                if(!decryptedStr) throw new Error("Fail");
-                
-                docData = JSON.parse(decryptedStr);
-                
-                document.getElementById('loginScreen').classList.add('hidden');
-                document.getElementById('app').classList.remove('hidden');
-                
-                initViewer();
-            } catch(e) {
-                document.getElementById('errorMsg').classList.remove('hidden');
-            }
-        }
+            const errEl = document.getElementById('errMsg');
+            errEl.classList.add('hidden');
 
-        function initViewer() {
-            const selector = document.getElementById('fileSelector');
-            
-            if(docData.files.length > 1) {
-                selector.classList.remove('hidden');
-                docData.files.forEach((file, idx) => {
-                    const opt = document.createElement('option');
-                    opt.value = idx;
-                    opt.textContent = file.name;
-                    selector.appendChild(opt);
-                });
-            }
-            
-            // Load first file
-            if(docData.files.length > 0) {
-                loadFile(0);
-            }
-        }
-
-        function switchFile(index) {
-            loadFile(parseInt(index));
-        }
-
-        function loadFile(index) {
-            const file = docData.files[index];
-            const frame = document.getElementById('docFrame');
-            const placeholder = document.getElementById('placeholder');
-
-            // Revoke old URL to save memory
-            if(currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
-            
-            const blob = dataURItoBlob(file.data);
-            currentBlobUrl = URL.createObjectURL(blob);
-
-            // MOBILE HANDLING
-            if (isMobile()) {
-                // On mobile, redirect immediately to the Blob URL
-                // This forces the browser to open its native viewer
-                window.location.replace(currentBlobUrl);
+            if(typeof CryptoJS === 'undefined') {
+                errEl.textContent = "Error: Crypto Library not loaded. Check internet.";
+                errEl.classList.remove('hidden');
                 return;
             }
 
-            // DESKTOP HANDLING (Iframe)
-            if(file.type.includes('pdf')) {
-                frame.src = currentBlobUrl + '#toolbar=0'; 
-                frame.classList.remove('hidden');
-                placeholder.classList.add('hidden');
-            } else if (file.type.includes('image')) {
-                const imgUrl = currentBlobUrl;
+            try {
+                const bytes = CryptoJS.AES.decrypt(ENCRYPTED_DATA, pass);
+                const str = bytes.toString(CryptoJS.enc.Utf8);
+                if(!str) throw new Error("Incorrect password.");
                 
-                const docContent = \`
-                    <html><body style="margin:0; display:flex; justify-content:center; align-items:center; background:#e5e7eb; height:100vh;">
-                    <img src="\${imgUrl}" style="max-width:100%; max-height:100%; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
-                    </body></html>
-                \`;
-                frame.srcdoc = docContent;
-                frame.classList.remove('hidden');
-                placeholder.classList.add('hidden');
-            } else {
-                frame.classList.add('hidden');
-                placeholder.classList.remove('hidden');
-                placeholder.textContent = "Unsupported file type for preview.";
+                docData = JSON.parse(str);
+                
+                document.getElementById('loginOverlay').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+                
+                // Show Sidebar on Desktop by default
+                if(window.innerWidth >= 768) {
+                    document.getElementById('sidebar').classList.remove('hidden');
+                }
+
+                initViewer();
+            } catch(e) {
+                console.error(e);
+                errEl.textContent = e.message || "Decryption failed.";
+                errEl.classList.remove('hidden');
             }
         }
 
-        function downloadCurrent() {
-            const selector = document.getElementById('fileSelector');
-            const index = selector.classList.contains('hidden') ? 0 : selector.value;
-            const file = docData.files[index];
+        async function initViewer() {
+            if(docData.allowDownload) document.getElementById('downloadBtn').classList.remove('hidden');
+            if(docData.allowAnnotate) {
+                document.getElementById('annotTools').classList.remove('hidden');
+                updateColorPalette();
+                document.getElementById('sizeSlider').value = toolSizes[currentTool];
+            }
+
+            const pdfData = atob(docData.data.split(',')[1]);
+            const loadingTask = pdfjsLib.getDocument({data: pdfData});
+            pdfDoc = await loadingTask.promise;
+            totalPages = pdfDoc.numPages;
             
-            const link = document.createElement('a');
-            link.href = file.data; 
-            link.download = file.name;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            document.getElementById('totalPages').textContent = totalPages;
+            
+            // Initial Scale
+            if(window.innerWidth < 768) {
+                fitWidth();
+            } else {
+                scale = 1.2;
+                renderAllPages();
+            }
+            generateThumbnails();
+            
+            // Setup Mobile Zoom
+            setupPinchZoom();
         }
 
-        function dataURItoBlob(dataURI) {
-            const byteString = atob(dataURI.split(',')[1]);
-            const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
-            const ab = new ArrayBuffer(byteString.length);
-            const ia = new Uint8Array(ab);
-            for (let i = 0; i < byteString.length; i++) {
-                ia[i] = byteString.charCodeAt(i);
+        async function renderAllPages() {
+            const container = document.getElementById('viewer');
+            container.innerHTML = ''; 
+
+            for(let i=1; i<=totalPages; i++) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'page-container bg-white';
+                wrapper.id = 'pageContainer-' + i;
+                wrapper.dataset.pageNumber = i;
+                container.appendChild(wrapper);
+                await renderPage(i, wrapper);
             }
-            return new Blob([ab], {type: mimeString});
+            setupObserver();
+        }
+
+        async function renderPage(pageNum, wrapper) {
+            const page = await pdfDoc.getPage(pageNum);
+            const viewport = page.getViewport({scale: scale});
+            
+            wrapper.style.width = \`\${viewport.width}px\`;
+            wrapper.style.height = \`\${viewport.height}px\`;
+
+            // PDF Canvas
+            let canvas = wrapper.querySelector('.pdf-canvas');
+            if(!canvas) {
+                canvas = document.createElement('canvas');
+                canvas.className = 'pdf-canvas';
+                wrapper.appendChild(canvas);
+            }
+            
+            // High DPI
+            const outputScale = window.devicePixelRatio || 1;
+            canvas.width = Math.floor(viewport.width * outputScale);
+            canvas.height = Math.floor(viewport.height * outputScale);
+            canvas.style.width = Math.floor(viewport.width) + "px";
+            canvas.style.height = Math.floor(viewport.height) + "px";
+
+            const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
+
+            await page.render({
+                canvasContext: canvas.getContext('2d'),
+                viewport: viewport,
+                transform: transform
+            }).promise;
+
+            // Annot Canvas
+            let annotCanvas = wrapper.querySelector('.annot-canvas');
+            if(!annotCanvas) {
+                annotCanvas = document.createElement('canvas');
+                annotCanvas.className = 'annot-canvas';
+                wrapper.appendChild(annotCanvas);
+                
+                if(docData.allowAnnotate) {
+                    setupAnnotEvents(annotCanvas);
+                }
+            }
+            annotCanvas.width = viewport.width;
+            annotCanvas.height = viewport.height;
+            
+            redrawAnnotations(pageNum);
+        }
+
+        // --- PINCH ZOOM (MOBILE) ---
+        function setupPinchZoom() {
+            const container = document.getElementById('mainContainer');
+            const viewer = document.getElementById('viewer');
+            
+            let startDist = 0;
+            let startScale = 1.0;
+            let isPinching = false;
+
+            container.addEventListener('touchstart', (e) => {
+                if(e.touches.length === 2) {
+                    isPinching = true;
+                    startDist = getDistance(e.touches[0], e.touches[1]);
+                    startScale = scale;
+                    e.preventDefault(); // Prevent native browser zoom
+                }
+            }, {passive: false});
+
+            container.addEventListener('touchmove', (e) => {
+                if(isPinching && e.touches.length === 2) {
+                    const newDist = getDistance(e.touches[0], e.touches[1]);
+                    const zoomFactor = newDist / startDist;
+                    
+                    // Visual feedback only
+                    const tempScale = startScale * zoomFactor;
+                    
+                    // Apply visual transform to viewer
+                    // Note: We clamp visuals to avoid crazy sizes
+                    if (tempScale > 0.5 && tempScale < 5.0) {
+                        viewer.style.transform = \`scale(\${zoomFactor})\`;
+                    }
+                    e.preventDefault(); 
+                }
+            }, {passive: false});
+
+            container.addEventListener('touchend', (e) => {
+                if(isPinching && e.touches.length < 2) {
+                    isPinching = false;
+                    // Calculate final scale
+                    // We need to commit the zoom by re-rendering
+                    // The viewer transform was just visual. 
+                    // Current visual scale is startScale * zoomFactor
+                    // But we can't easily get zoomFactor from the event.
+                    // Instead, we read the transform or just assume last calculated.
+                    
+                    // Simplified: Read the transform style we set
+                    const style = viewer.style.transform;
+                    const match = style.match(/scale\(([^)]+)\)/);
+                    if(match) {
+                        const factor = parseFloat(match[1]);
+                        let newScale = startScale * factor;
+                        newScale = Math.max(0.5, Math.min(newScale, 4.0)); // Clamp
+                        
+                        scale = newScale;
+                        viewer.style.transform = 'none'; // Reset visual
+                        renderAllPages(); // Commit render
+                    }
+                }
+            });
+        }
+
+        function getDistance(t1, t2) {
+            const dx = t1.clientX - t2.clientX;
+            const dy = t1.clientY - t2.clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        // --- CONTROLS ---
+        function toggleSidebar() {
+            const sb = document.getElementById('sidebar');
+            if(sb.classList.contains('hidden')) {
+                sb.classList.remove('hidden');
+            } else {
+                sb.classList.add('hidden');
+            }
+        }
+
+        function scrollToPage(num) {
+            const el = document.getElementById('pageContainer-' + num);
+            if(el) {
+                el.scrollIntoView({behavior: 'smooth', block: 'start'});
+                currentPage = num;
+                document.getElementById('pageInput').value = num;
+            }
+            if(window.innerWidth < 768) document.getElementById('sidebar').classList.add('hidden');
+        }
+
+        function changePage(delta) {
+            const newPage = Math.max(1, Math.min(totalPages, currentPage + delta));
+            scrollToPage(newPage);
+        }
+
+        function jumpToPage(val) {
+            const num = parseInt(val);
+            if(num >= 1 && num <= totalPages) scrollToPage(num);
+            else document.getElementById('pageInput').value = currentPage;
+        }
+
+        function zoom(delta) {
+            const newScale = parseFloat((scale + delta).toFixed(1));
+            if(newScale >= 0.2 && newScale <= 4.0) {
+                scale = newScale;
+                renderAllPages();
+            }
+        }
+
+        async function fitWidth() {
+            const containerWidth = document.getElementById('mainContainer').clientWidth;
+            const page = await pdfDoc.getPage(1);
+            const viewport = page.getViewport({scale: 1.0});
+            scale = (containerWidth - 32) / viewport.width; 
+            renderAllPages();
+        }
+
+        async function fitPage() {
+            const containerHeight = document.getElementById('mainContainer').clientHeight;
+            const page = await pdfDoc.getPage(1);
+            const viewport = page.getViewport({scale: 1.0});
+            scale = (containerHeight - 32) / viewport.height;
+            renderAllPages();
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else if (document.exitFullscreen) document.exitFullscreen();
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark');
+        }
+
+        // --- ANNOTATION ---
+        function setTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + tool).classList.add('active');
+            
+            // Set defaults if first time
+            if(tool === 'pen') { currentColor = penColors[0]; }
+            if(tool === 'highlight') { currentColor = highColors[0]; }
+            
+            updateColorPalette();
+            
+            // Update slider to this tool's size
+            document.getElementById('sizeSlider').value = toolSizes[tool];
+        }
+
+        function updateSize(val) {
+            toolSizes[currentTool] = parseInt(val);
+        }
+
+        function setColor(color) {
+            currentColor = color;
+            updateColorPalette();
+        }
+
+        function updateColorPalette() {
+            const container = document.getElementById('colorPalette');
+            container.innerHTML = '';
+            
+            let colors = [];
+            if(currentTool === 'pen') colors = penColors;
+            if(currentTool === 'highlight') colors = highColors;
+            
+            colors.forEach(c => {
+                const div = document.createElement('div');
+                div.className = \`color-dot \${currentColor === c ? 'active' : ''}\`;
+                div.style.backgroundColor = c;
+                div.onclick = () => setColor(c);
+                container.appendChild(div);
+            });
+        }
+
+        // Drawing Logic
+        function setupAnnotEvents(canvas) {
+            // Mouse
+            canvas.addEventListener('mousedown', startDraw);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', endDraw);
+            canvas.addEventListener('mouseout', endDraw);
+            
+            // Touch - we need to be careful not to conflict with pinch
+            // We only draw if 1 finger
+            canvas.addEventListener('touchstart', e => {
+                if(e.touches.length === 1) {
+                    e.preventDefault();
+                    startDraw(e.touches[0]);
+                }
+            });
+            canvas.addEventListener('touchmove', e => {
+                if(e.touches.length === 1) {
+                    e.preventDefault();
+                    draw(e.touches[0]);
+                }
+            });
+            canvas.addEventListener('touchend', e => {
+                endDraw();
+            });
+        }
+
+        function getPoint(e, canvas) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (e.clientX - rect.left) * (canvas.width / rect.width),
+                y: (e.clientY - rect.top) * (canvas.height / rect.height)
+            };
+        }
+
+        function startDraw(e) {
+            isDrawing = true;
+            activeCanvas = e.target || e.srcElement;
+            currentStroke = [getPoint(e, activeCanvas)];
+        }
+
+        function draw(e) {
+            if(!isDrawing || !activeCanvas) return;
+            const ctx = activeCanvas.getContext('2d');
+            const pt = getPoint(e, activeCanvas);
+            currentStroke.push(pt);
+            
+            renderStroke(ctx, currentStroke, currentTool, currentColor, toolSizes[currentTool]);
+        }
+
+        function endDraw(e) {
+            if(!isDrawing || !activeCanvas) return;
+            isDrawing = false;
+            
+            const pageNum = parseInt(activeCanvas.parentNode.dataset.pageNumber);
+            if(!annotations[pageNum]) annotations[pageNum] = [];
+            
+            // Normalize points (0-1 range) so they survive zoom/resize
+            const normPoints = currentStroke.map(p => ({
+                x: p.x / activeCanvas.width,
+                y: p.y / activeCanvas.height
+            }));
+
+            annotations[pageNum].push({
+                tool: currentTool,
+                color: currentColor,
+                size: toolSizes[currentTool],
+                points: normPoints
+            });
+            
+            if(redoStack[pageNum]) redoStack[pageNum] = [];
+            
+            activeCanvas = null;
+        }
+
+        function renderStroke(ctx, points, tool, color, size) {
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = size;
+            ctx.strokeStyle = color;
+            
+            if(tool === 'eraser') {
+                ctx.globalCompositeOperation = 'destination-out';
+            } else if(tool === 'highlight') {
+                ctx.globalCompositeOperation = 'multiply';
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+            }
+
+            ctx.beginPath();
+            if(points.length > 0) ctx.moveTo(points[0].x, points[0].y);
+            for(let i=1; i<points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.stroke();
+            ctx.globalCompositeOperation = 'source-over';
+        }
+
+        function redrawAnnotations(pageNum) {
+            const wrapper = document.getElementById('pageContainer-' + pageNum);
+            if(!wrapper) return;
+            const canvas = wrapper.querySelector('.annot-canvas');
+            if(!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const pageAnnots = annotations[pageNum] || [];
+            
+            pageAnnots.forEach(annot => {
+                const points = annot.points.map(p => ({
+                    x: p.x * canvas.width,
+                    y: p.y * canvas.height
+                }));
+                renderStroke(ctx, points, annot.tool, annot.color, annot.size);
+            });
+        }
+
+        function undo() {
+            const pageNum = currentPage;
+            if(annotations[pageNum] && annotations[pageNum].length > 0) {
+                if(!redoStack[pageNum]) redoStack[pageNum] = [];
+                redoStack[pageNum].push(annotations[pageNum].pop());
+                redrawAnnotations(pageNum);
+            }
+        }
+
+        function redo() {
+            const pageNum = currentPage;
+            if(redoStack[pageNum] && redoStack[pageNum].length > 0) {
+                annotations[pageNum].push(redoStack[pageNum].pop());
+                redrawAnnotations(pageNum);
+            }
+        }
+
+        function setupObserver() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if(entry.isIntersecting) {
+                        const num = parseInt(entry.target.dataset.pageNumber);
+                        currentPage = num;
+                        document.getElementById('pageInput').value = num;
+                    }
+                });
+            }, {threshold: 0.1});
+            document.querySelectorAll('.page-container').forEach(el => observer.observe(el));
+        }
+
+        async function generateThumbnails() {
+            const container = document.getElementById('thumbnailContainer');
+            for(let i=1; i<=totalPages; i++) {
+                const page = await pdfDoc.getPage(i);
+                const viewport = page.getViewport({scale: 0.2});
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                canvas.className = 'border border-gray-300 dark:border-gray-600 shadow cursor-pointer hover:border-blue-500 mb-2';
+                canvas.onclick = () => scrollToPage(i);
+                
+                await page.render({canvasContext: canvas.getContext('2d'), viewport: viewport}).promise;
+                container.appendChild(canvas);
+                
+                const label = document.createElement('div');
+                label.textContent = i;
+                label.className = 'text-xs text-gray-500 mb-4';
+                container.appendChild(label);
+            }
+        }
+
+        function downloadOriginal() {
+            const a = document.createElement('a');
+            a.href = docData.data;
+            a.download = docData.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         }
     <\/script>
 </body>
