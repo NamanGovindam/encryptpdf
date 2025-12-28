@@ -60,8 +60,8 @@
     <div class="max-w-5xl mx-auto p-6">
         
         <div class="mb-8 text-center">
-            <h1 class="text-3xl font-bold text-slate-900 mb-2">Secure PDF Packer <span class="text-blue-600 text-sm align-top bg-blue-100 px-2 py-0.5 rounded-full">v5.3 Fixed</span></h1>
-            <p class="text-slate-600">Encrypt PDFs with Hi-Res Viewer, Pinch-to-Zoom, and Custom Annotations.</p>
+            <h1 class="text-3xl font-bold text-slate-900 mb-2">Secure PDF Packer <span class="text-blue-600 text-sm align-top bg-blue-100 px-2 py-0.5 rounded-full">v5.4 Captcha</span></h1>
+            <p class="text-slate-600">Encrypt PDFs with Viewer, Annotations, and Secure Download Verification.</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -111,7 +111,7 @@
                             <input type="checkbox" id="allowDownload" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500">
                             <div>
                                 <span class="text-sm font-bold text-slate-700">Allow Download?</span>
-                                <p class="text-xs text-slate-500">User can save the original PDF file.</p>
+                                <p class="text-xs text-slate-500">User can save the original or annotated PDF.</p>
                             </div>
                         </label>
 
@@ -230,6 +230,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"><\/script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';<\/script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"><\/script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>
     <style>
         :root { --bg-color: #f3f4f6; --toolbar-bg: #ffffff; --text-color: #1f2937; }
         body.dark { --bg-color: #111827; --toolbar-bg: #1f2937; --text-color: #f3f4f6; }
@@ -283,6 +284,40 @@
             </div>
             <button onclick="unlock()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow transition transform active:scale-95">Unlock Viewer</button>
             <p id="errMsg" class="text-red-500 text-sm mt-3 text-center hidden"></p>
+        </div>
+    </div>
+
+    <!-- DOWNLOAD/CAPTCHA MODAL -->
+    <div id="dlModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-2xl w-full max-w-sm border border-gray-200 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800 dark:text-white">Verify Download</h3>
+                <button onclick="closeDlModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Solve the captcha to access download options.</p>
+            
+            <div class="bg-gray-100 dark:bg-slate-700 p-3 rounded-lg mb-4 flex justify-between items-center">
+                <canvas id="captchaCanvas" width="120" height="40" class="bg-white rounded border"></canvas>
+                <button onclick="generateCaptcha()" class="text-blue-500 hover:text-blue-700" title="Refresh Captcha">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                </button>
+            </div>
+            
+            <input type="text" id="captchaInput" class="w-full px-4 py-2 border rounded-lg mb-4 dark:bg-slate-700 dark:text-white dark:border-slate-600" placeholder="Type characters above">
+            
+            <div id="dlActions" class="space-y-2 opacity-50 pointer-events-none transition-opacity">
+                <button onclick="downloadOriginalAction()" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 rounded-lg text-sm flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Download Original PDF
+                </button>
+                <button onclick="downloadAnnotatedAction()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-sm flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                    Download Annotated PDF
+                </button>
+            </div>
         </div>
     </div>
 
@@ -367,7 +402,7 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M20 8V4m0 0h-4M4 16v4m0 0h4M20 16v4m0 0h-4"/></svg>
                 </button>
 
-                <button id="downloadBtn" onclick="downloadOriginal()" class="hidden bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg shadow">
+                <button id="downloadBtn" onclick="handleDownloadClick()" class="hidden bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg shadow">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                 </button>
             </div>
@@ -396,6 +431,7 @@
         let scale = 1.0;
         let currentPage = 1;
         let totalPages = 0;
+        let captchaCode = '';
         
         // Annotation Config
         const penColors = ['#000000', '#ef4444', '#3b82f6', '#10b981']; 
@@ -411,7 +447,7 @@
         let currentStroke = [];
         let annotations = {}; // { pageNum: [actions] }
         let redoStack = {};   // { pageNum: [actions] }
-        let activeCanvas = null; // Track which canvas is being drawn on
+        let activeCanvas = null; 
 
         // --- SECURITY ---
         document.addEventListener('keydown', e => {
@@ -482,7 +518,6 @@
             }
             generateThumbnails();
             
-            // Setup Mobile Zoom
             setupPinchZoom();
         }
 
@@ -548,6 +583,149 @@
             redrawAnnotations(pageNum);
         }
 
+        // --- DOWNLOAD & CAPTCHA ---
+        
+        function handleDownloadClick() {
+            const hasAnnotations = Object.keys(annotations).some(k => annotations[k].length > 0);
+            
+            if (hasAnnotations) {
+                // If user annotated, prompt choice + captcha
+                document.getElementById('dlModal').classList.remove('hidden');
+                generateCaptcha();
+                // Check captcha input on keyup
+                document.getElementById('captchaInput').onkeyup = checkCaptcha;
+            } else {
+                // No annotations? Just download original directly
+                downloadOriginal();
+            }
+        }
+        
+        function closeDlModal() {
+            document.getElementById('dlModal').classList.add('hidden');
+            document.getElementById('captchaInput').value = '';
+            document.getElementById('dlActions').classList.add('opacity-50', 'pointer-events-none');
+        }
+        
+        function generateCaptcha() {
+            const canvas = document.getElementById('captchaCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0,0,120,40);
+            
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            captchaCode = '';
+            for(let i=0; i<5; i++) {
+                captchaCode += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            
+            // Background Noise
+            for(let i=0; i<30; i++) {
+                ctx.fillStyle = \`rgba(\${Math.random()*255},\${Math.random()*255},\${Math.random()*255},0.2)\`;
+                ctx.beginPath();
+                ctx.arc(Math.random()*120, Math.random()*40, Math.random()*2, 0, 2*Math.PI);
+                ctx.fill();
+            }
+            
+            // Text
+            ctx.font = 'bold 24px monospace';
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Jittery Text
+            let x = 20;
+            for(let i=0; i<5; i++) {
+                ctx.save();
+                ctx.translate(x, 20);
+                ctx.rotate((Math.random() - 0.5) * 0.4);
+                ctx.fillText(captchaCode[i], 0, 0);
+                ctx.restore();
+                x += 20;
+            }
+            
+            // Line Noise
+            for(let i=0; i<3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(Math.random()*120, Math.random()*40);
+                ctx.lineTo(Math.random()*120, Math.random()*40);
+                ctx.strokeStyle = \`rgba(\${Math.random()*100},0,0,0.5)\`;
+                ctx.stroke();
+            }
+            
+            document.getElementById('captchaInput').value = '';
+            document.getElementById('dlActions').classList.add('opacity-50', 'pointer-events-none');
+        }
+        
+        function checkCaptcha() {
+            const val = document.getElementById('captchaInput').value;
+            if(val.toUpperCase() === captchaCode) {
+                document.getElementById('dlActions').classList.remove('opacity-50', 'pointer-events-none');
+            } else {
+                document.getElementById('dlActions').classList.add('opacity-50', 'pointer-events-none');
+            }
+        }
+        
+        function downloadOriginalAction() {
+            downloadOriginal();
+            closeDlModal();
+        }
+        
+        async function downloadAnnotatedAction() {
+            const btn = document.querySelector('#dlActions button:last-child');
+            const originalText = btn.innerText;
+            btn.innerText = "Generating...";
+            
+            setTimeout(async () => {
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF({unit: 'px', format: 'a4'}); 
+                    
+                    // We iterate DOM elements to grab rendered canvases
+                    for(let i=1; i<=totalPages; i++) {
+                        const wrapper = document.getElementById('pageContainer-'+i);
+                        if(wrapper) {
+                            if(i > 1) doc.addPage();
+                            
+                            const pdfCanvas = wrapper.querySelector('.pdf-canvas');
+                            const annotCanvas = wrapper.querySelector('.annot-canvas');
+                            
+                            // Create Composite
+                            const w = pdfCanvas.width;
+                            const h = pdfCanvas.height;
+                            const comp = document.createElement('canvas');
+                            comp.width = w;
+                            comp.height = h;
+                            const ctx = comp.getContext('2d');
+                            
+                            ctx.drawImage(pdfCanvas, 0, 0);
+                            ctx.drawImage(annotCanvas, 0, 0);
+                            
+                            const imgData = comp.toDataURL('image/jpeg', 0.85);
+                            
+                            // Fit to PDF Page
+                            const pdfW = doc.internal.pageSize.getWidth();
+                            const pdfH = doc.internal.pageSize.getHeight();
+                            doc.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+                        }
+                    }
+                    doc.save(docData.name + '_annotated.pdf');
+                    closeDlModal();
+                } catch(e) {
+                    alert("Error: " + e.message);
+                } finally {
+                    btn.innerText = originalText;
+                }
+            }, 100);
+        }
+
+        function downloadOriginal() {
+            const a = document.createElement('a');
+            a.href = docData.data;
+            a.download = docData.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
         // --- PINCH ZOOM (MOBILE) ---
         function setupPinchZoom() {
             const container = document.getElementById('mainContainer');
@@ -562,7 +740,7 @@
                     isPinching = true;
                     startDist = getDistance(e.touches[0], e.touches[1]);
                     startScale = scale;
-                    e.preventDefault(); // Prevent native browser zoom
+                    e.preventDefault(); 
                 }
             }, {passive: false});
 
@@ -571,11 +749,7 @@
                     const newDist = getDistance(e.touches[0], e.touches[1]);
                     const zoomFactor = newDist / startDist;
                     
-                    // Visual feedback only
                     const tempScale = startScale * zoomFactor;
-                    
-                    // Apply visual transform to viewer
-                    // Note: We clamp visuals to avoid crazy sizes
                     if (tempScale > 0.5 && tempScale < 5.0) {
                         viewer.style.transform = \`scale(\${zoomFactor})\`;
                     }
@@ -586,24 +760,15 @@
             container.addEventListener('touchend', (e) => {
                 if(isPinching && e.touches.length < 2) {
                     isPinching = false;
-                    // Calculate final scale
-                    // We need to commit the zoom by re-rendering
-                    // The viewer transform was just visual. 
-                    // Current visual scale is startScale * zoomFactor
-                    // But we can't easily get zoomFactor from the event.
-                    // Instead, we read the transform or just assume last calculated.
-                    
-                    // Simplified: Read the transform style we set
                     const style = viewer.style.transform;
                     const match = style.match(/scale\(([^)]+)\)/);
                     if(match) {
                         const factor = parseFloat(match[1]);
                         let newScale = startScale * factor;
-                        newScale = Math.max(0.5, Math.min(newScale, 4.0)); // Clamp
-                        
+                        newScale = Math.max(0.5, Math.min(newScale, 4.0));
                         scale = newScale;
-                        viewer.style.transform = 'none'; // Reset visual
-                        renderAllPages(); // Commit render
+                        viewer.style.transform = 'none'; 
+                        renderAllPages(); 
                     }
                 }
             });
@@ -685,13 +850,10 @@
             document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('btn-' + tool).classList.add('active');
             
-            // Set defaults if first time
             if(tool === 'pen') { currentColor = penColors[0]; }
             if(tool === 'highlight') { currentColor = highColors[0]; }
             
             updateColorPalette();
-            
-            // Update slider to this tool's size
             document.getElementById('sizeSlider').value = toolSizes[tool];
         }
 
@@ -723,14 +885,11 @@
 
         // Drawing Logic
         function setupAnnotEvents(canvas) {
-            // Mouse
             canvas.addEventListener('mousedown', startDraw);
             canvas.addEventListener('mousemove', draw);
             canvas.addEventListener('mouseup', endDraw);
             canvas.addEventListener('mouseout', endDraw);
             
-            // Touch - we need to be careful not to conflict with pinch
-            // We only draw if 1 finger
             canvas.addEventListener('touchstart', e => {
                 if(e.touches.length === 1) {
                     e.preventDefault();
@@ -778,7 +937,6 @@
             const pageNum = parseInt(activeCanvas.parentNode.dataset.pageNumber);
             if(!annotations[pageNum]) annotations[pageNum] = [];
             
-            // Normalize points (0-1 range) so they survive zoom/resize
             const normPoints = currentStroke.map(p => ({
                 x: p.x / activeCanvas.width,
                 y: p.y / activeCanvas.height
@@ -888,15 +1046,6 @@
                 label.className = 'text-xs text-gray-500 mb-4';
                 container.appendChild(label);
             }
-        }
-
-        function downloadOriginal() {
-            const a = document.createElement('a');
-            a.href = docData.data;
-            a.download = docData.name;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
         }
     <\/script>
 </body>
